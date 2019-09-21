@@ -22,6 +22,7 @@ class Racetrack():
             racetrack[29,15:22] = 0.25 # start line
             return racetrack, ((29,15),(29,22)), ((0,29),(6,29))
 
+        # TODO
         self.nA = 3 # +1, -1, 0 to the velocity components
 
         self.vx = self.vy = None
@@ -36,13 +37,26 @@ class Racetrack():
 
         return ((self.px, self.py), (self.vx, self.vy))
 
+    def get_actions(self):
+        
+        actions = np.array([])
+
+        for dvx in range(-3,4):
+            for dvy in range(-3,4):
+                nvx = self.vx + dvx
+                nvy = self.vy + dvy
+
+                if 0 < nvx <= 5 and 0 < nvy <= 5:
+                    actions = np.append(actions, [(dvx, dvy)])
+                # for the early cases when vx or vy hasn't been changed since start pos
+                elif 0 < nvx <= 5 and nvy == 0 or 0 < nvy <= 5 and nvx == 0:
+                    actions = np.append(actions, [(dvx, dvy)])
+        return actions
+
     def step(self, action):
         
-        # TODO
-        # update velocity components, 0 < v <= 5
         # each timestep actions are with prob 0.1 set to 0 
-        #self.vx +=
-        #self.vy +=
+        self.vx, self.vy = np.random.choice([(self.vx, self.vy), (self.vx + action[0], self.vy + action[1])], p=[0.1, 0.9])
 
         tpx = self.px - self.vx # temp pos x
         tpy = self.py + self.vy # temp pos y
