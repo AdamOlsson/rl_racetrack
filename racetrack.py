@@ -24,7 +24,7 @@ class Racetrack():
 
         self.racetrack, self.start_line, self.end_line = create_turn()
 
-        self.nA = len([(x,y) for x in range(-3,4) for y in range(-3,4)])
+        self.nA = 9
 
         # state = ((px, py), (vx,vy))
         self.nS = self.racetrack.shape[1]*self.racetrack[0] # this includes off road which can't be reached
@@ -44,8 +44,8 @@ class Racetrack():
         
         actions = []
 
-        for dvx in range(-3,4):
-            for dvy in range(-3,4):
+        for dvx in range(-1,2):
+            for dvy in range(-1,2):
                 nvx = self.vx + dvx
                 nvy = self.vy + dvy
 
