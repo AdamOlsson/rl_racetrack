@@ -39,7 +39,7 @@ class Racetrack():
 
     def get_actions(self):
         
-        actions = np.array([])
+        actions = []
 
         for dvx in range(-3,4):
             for dvy in range(-3,4):
@@ -47,19 +47,23 @@ class Racetrack():
                 nvy = self.vy + dvy
 
                 if 0 < nvx <= 5 and 0 < nvy <= 5:
-                    actions = np.append(actions, [(dvx, dvy)])
+                    actions.append((dvx, dvy))
                 # for the early cases when vx or vy hasn't been changed since start pos
                 elif 0 < nvx <= 5 and nvy == 0 or 0 < nvy <= 5 and nvx == 0:
-                    actions = np.append(actions, [(dvx, dvy)])
+                    actions.append((dvx, dvy))
         return actions
 
     def step(self, action):
         
         # each timestep actions are with prob 0.1 set to 0 
-        self.vx, self.vy = np.random.choice([(self.vx, self.vy), (self.vx + action[0], self.vy + action[1])], p=[0.1, 0.9])
+        #self.vx, self.vy = np.random.choice([(self.vx, self.vy), (self.vx + action[0], self.vy + action[1])], p=[0.1, 0.9])
+        if np.random.choice(10) > 0:
+           self.vx += action[0]
+           self.vy += action[1]
+        
 
-        tpx = self.px - self.vx # temp pos x
-        tpy = self.py + self.vy # temp pos y
+        tpx = self.px + self.vx # temp pos x
+        tpy = self.py - self.vy # temp pos y
         
         # crossed finnish line?
         if self.end_line[0][0] < tpy and tpy < self.end_line[1][0] and tpx >= self.end_line[0][1]:
@@ -99,8 +103,11 @@ if __name__ == "__main__":
     env = Racetrack()
     env.reset()
 
+    a = env.get_actions()
+
+    env.step(a[0])
+
     fig = plt.figure(figsize=(15,15))
     plt.imshow(env.racetrack)
-
     plt.show()
 
