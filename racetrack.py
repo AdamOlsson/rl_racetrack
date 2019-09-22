@@ -22,13 +22,16 @@ class Racetrack():
             racetrack[29,15:22] = 0.25 # start line
             return racetrack, ((29,15),(29,22)), ((0,29),(6,29))
 
-        # TODO
-        self.nA = 3 # +1, -1, 0 to the velocity components
+        self.racetrack, self.start_line, self.end_line = create_turn()
+
+        self.nA = len([(x,y) for x in range(-3,4) for y in range(-3,4)])
+
+        # state = ((px, py), (vx,vy))
+        self.nS = self.racetrack.shape[1]*self.racetrack[0] # this includes off road which can't be reached
 
         self.vx = self.vy = None
         self.px = self.py = None
 
-        self.racetrack, self.start_line, self.end_line = create_turn()
 
     def reset(self):
         self.vx = self.vy = 0
@@ -105,6 +108,7 @@ if __name__ == "__main__":
 
     a = env.get_actions()
 
+    print(env.nA)
     env.step(a[0])
 
     fig = plt.figure(figsize=(15,15))
