@@ -38,10 +38,14 @@ class Racetrack():
         self.py = self.racetrack.shape[0] -1
         self.px = np.random.randint(self.start_line[0][1], self.start_line[1][1]+1) # randomly set starting pos on starting line
 
-        return ((self.px, self.py), (self.vx, self.vy))
+        return ((self.px, self.py), (self.vx+1, self.vy+1))
 
     def get_actions(self):
-        
+        '''
+        Each velocity component is translated to +1 because of action indexing in the MC control. I.e if:
+        action vx = -1 --> index = vx +1 = 0
+        So action (-1,1) would become index (0,2).
+        '''
         actions = []
 
         for dvx in range(-1,2):
@@ -50,21 +54,23 @@ class Racetrack():
                 nvy = self.vy + dvy
 
                 if 0 < nvx <= 5 and 0 < nvy <= 5:
-                    actions.append((dvx, dvy))
+                    actions.append((dvx+1, dvy+1))
                 # for the early cases when vx or vy hasn't been changed since start pos
                 elif 0 < nvx <= 5 and nvy == 0 or 0 < nvy <= 5 and nvx == 0:
-                    actions.append((dvx, dvy))
+                    actions.append((dvx+1, dvy+1))
         return actions
 
     def step(self, action):
         
+        dvx = action[0] -1
+        dvy = action[1] -1
+
         # each timestep actions are with prob 0.1 set to 0 
         #self.vx, self.vy = np.random.choice([(self.vx, self.vy), (self.vx + action[0], self.vy + action[1])], p=[0.1, 0.9])
         if np.random.choice(10) > 0:
-           self.vx += action[0]
-           self.vy += action[1]
+           self.vx += dvx
+           self.vy += dvy
         
-
         tpx = self.px + self.vx # temp pos x
         tpy = self.py - self.vy # temp pos y
         
@@ -76,7 +82,7 @@ class Racetrack():
             info = ('Crossed the finnish line!')
             self.px = tpx
             self.py = tpy
-            state = ((tpx, tpy, (self.vx, self.vy)))
+            state = ((tpx, tpy, (self.vx+1, self.vy+1)))
 
         # check for pos out of bounds of map
         elif tpy < 0 or self.racetrack.shape[1] < tpy:
@@ -91,7 +97,7 @@ class Racetrack():
             reward = -1
             game_over = False
             info = ()
-            state = self.reset() if self.racetrack[tpy,tpx] == 1 else ((tpx, tpy), (self.vx, self.vy))
+            state = self.reset() if self.racetrack[tpy,tpx] == 1 else ((tpx, tpy), (self.vx+1, self.vy+1))
 
         # update pos
         self.px = tpx
