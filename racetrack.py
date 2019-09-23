@@ -25,9 +25,11 @@ class Racetrack():
         self.racetrack, self.start_line, self.end_line = create_turn()
 
         self.nA = 9
+        self.action_space = (3,3)
 
         # state = ((px, py), (vx,vy))
-        self.nS = self.racetrack.shape[1]*self.racetrack[0] # this includes off road which can't be reached
+        self.nS = self.racetrack.shape[1]*self.racetrack[0]*self.nA # this includes off road which can't be reached
+        self.state_space = (self.racetrack.shape[0], self.racetrack.shape[1], 5, 5)
 
         self.vx = self.vy = None
         self.px = self.py = None
