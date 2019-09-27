@@ -5,30 +5,35 @@ import matplotlib.pyplot as plt
 
 class Racetrack():
     def __init__(self):
-
+        self.OFFROAD_VALUE = 1
+        self.FINISH_LINE_VALUE = 0.75
+        self.START_LINE_VALUE = 0.25
+        self.ONROAD_VALUE = 0
         # probably not my proudest function...
-        def create_turn():
+        def create_turn(fl, ofr, sl):
             racetrack = np.zeros([30,30])
-            racetrack[0:6,29]   = 0.75 # finnish line
-            racetrack[6:,23:]   = 1
-            racetrack[7:,22]    = 1
-            racetrack[0,:15]    = 1
-            racetrack[1:3,:14]  = 1
-            racetrack[3,:13]    = 1
-            racetrack[4:,:12]   = 1
-            racetrack[13:,12]   = 1
-            racetrack[21:,13]   = 1
-            racetrack[28:,14]   = 1
-            racetrack[29,15:22] = 0.25 # start line
+            racetrack[0:6,29]   = fl # finnish line
+            racetrack[6:,23:]   = ofr
+            racetrack[7:,22]    = ofr
+            racetrack[0,:15]    = ofr
+            racetrack[1:3,:14]  = ofr
+            racetrack[3,:13]    = ofr
+            racetrack[4:,:12]   = ofr
+            racetrack[13:,12]   = ofr
+            racetrack[21:,13]   = ofr
+            racetrack[28:,14]   = ofr
+            racetrack[29,15:22] = sl # start line
             return racetrack, ((29,15),(29,22)), ((0,29),(6,29))
 
-        self.racetrack, self.start_line, self.end_line = create_turn()
+        self.racetrack, self.start_line, self.end_line = create_turn(self.FINISH_LINE_VALUE, self.OFFROAD_VALUE, self.START_LINE_VALUE)
+
+        self.max_v = 4
 
         self.nA = 9
-        self.action_space = (3,3)
 
         # state = ((px, py), (vx,vy))
         self.nS = self.racetrack.shape[1]*self.racetrack[0]*self.nA # this includes off road which can't be reached
+        # all positions on track as well as all possible velocities (v = 0,1,2,3,4)
         self.state_space = (self.racetrack.shape[0], self.racetrack.shape[1], 5, 5)
 
         self.vx = self.vy = None
@@ -36,43 +41,46 @@ class Racetrack():
 
 
     def reset(self):
+        #print("Reset!")
         self.vx = self.vy = 0
         self.py = self.racetrack.shape[0] -1
         self.px = np.random.randint(self.start_line[0][1], self.start_line[1][1]+1) # randomly set starting pos on starting line
+        return ((self.px, self.py), (self.vx, self.vy))
 
-        return ((self.px, self.py), (self.vx+1, self.vy+1))
 
-    def get_actions(self):
-        '''
-        Each velocity component is translated to +1 because of action indexing in the MC control. I.e if:
-        action vx = -1 --> index = vx +1 = 0
-        So action (-1,1) would become index (0,2).
-        '''
+    def get_available_actions(self):
         actions = []
-
+        px = self.px; py = self.py; vx = self.vx; vy = self.vy 
         for dvx in range(-1,2):
             for dvy in range(-1,2):
-                nvx = self.vx + dvx
-                nvy = self.vy + dvy
-
-                if 0 < nvx <= 5 and 0 < nvy <= 5:
-                    actions.append((dvx+1, dvy+1))
-                # for the early cases when vx or vy hasn't been changed since start pos
-                elif 0 < nvx <= 5 and nvy == 0 or 0 < nvy <= 5 and nvx == 0:
-                    actions.append((dvx+1, dvy+1))
+                nvx = vx + dvx
+                nvy = vy + dvy
+                if 0 < nvx < 5 and 0 < nvy < 5:
+                    actions.append((dvx, dvy))
+                elif 0 < nvx < 5 and nvy == 0 or 0 < nvy < 5 and nvx == 0:
+                    actions.append((dvx, dvy))
+                elif nvx == 0 and nvy == 0 and py == self.racetrack.shape[0]-1:
+                    actions.append((dvx, dvy))
         return actions
 
-    def step(self, action):
-        
-        dvx = action[0] -1
-        dvy = action[1] -1
+    def is_on_track(self, x,y):
+        return 0 <= x < self.racetrack.shape[1] and 0 <= y < self.racetrack.shape[0] and self.racetrack[y,x] != self.OFFROAD_VALUE
 
+
+    def step(self, action):
+
+        a = [(0,0), (action[0], action[1])]
         # each timestep actions are with prob 0.1 set to 0 
-        #self.vx, self.vy = np.random.choice([(self.vx, self.vy), (self.vx + action[0], self.vy + action[1])], p=[0.1, 0.9])
-        if np.random.choice(10) > 0:
-           self.vx += dvx
-           self.vy += dvy
-        
+        (dvx, dvy) = a[np.random.choice(len(a), p=[0.1, 0.9])]
+
+        #print("act ({}, {})".format(dvx,dvy))
+
+        self.vx += dvx
+        self.vy += dvy
+
+        #print("vel ({}, {})".format(self.vx, self.vy))
+
+        # temporary position
         tpx = self.px + self.vx # temp pos x
         tpy = self.py - self.vy # temp pos y
         
@@ -84,10 +92,10 @@ class Racetrack():
             info = ('Crossed the finnish line!')
             self.px = tpx
             self.py = tpy
-            state = ((tpx, tpy, (self.vx+1, self.vy+1)))
+            state = ((tpx, tpy, (self.vx, self.vy)))
 
         # check for pos out of bounds of map
-        elif tpy < 0 or self.racetrack.shape[1] < tpy:
+        elif not (0 <= tpy and tpy < self.racetrack.shape[1]) or not(0 <= tpx and tpx < self.racetrack.shape[0]):
             # pos out of bounds and reset pos to starting line
             reward = -1
             game_over = False
@@ -99,27 +107,15 @@ class Racetrack():
             reward = -1
             game_over = False
             info = ()
-            state = self.reset() if self.racetrack[tpy,tpx] == 1 else ((tpx, tpy), (self.vx+1, self.vy+1))
+            state = self.reset() if self.racetrack[tpy,tpx] == 1 else ((tpx, tpy), (self.vx, self.vy))
 
         # update pos
-        self.px = tpx
-        self.py = tpy
+        self.px += self.vx
+        self.py -= self.vy
+
+        #print("pos ({}, {})".format(self.px, self.py))
+
+        #if game_over:
+        #    print("GOAL!")
 
         return state, reward, game_over, info
-
-
-
-if __name__ == "__main__":
-
-    env = Racetrack()
-    env.reset()
-
-    a = env.get_actions()
-
-    print(env.nA)
-    env.step(a[0])
-
-    fig = plt.figure(figsize=(15,15))
-    plt.imshow(env.racetrack)
-    plt.show()
-
