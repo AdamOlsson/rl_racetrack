@@ -1,17 +1,16 @@
 # https://gist.github.com/vfdev-5/f88007b0d0f7ef68a84c269f74f18ca9
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Racetrack():
     def __init__(self):
-        self.OFFROAD_VALUE = 1
+        self.OFFROAD_VALUE = 0
         self.FINISH_LINE_VALUE = 0.75
         self.START_LINE_VALUE = 0.25
-        self.ONROAD_VALUE = 0
+        self.ONROAD_VALUE = 1
         # probably not my proudest function...
         def create_turn(fl, ofr, sl):
-            racetrack = np.zeros([30,30])
+            racetrack = np.ones([30,30])
             racetrack[0:6,29]   = fl # finnish line
             racetrack[6:,23:]   = ofr
             racetrack[7:,22]    = ofr
@@ -107,15 +106,12 @@ class Racetrack():
             reward = -1
             game_over = False
             info = ()
-            state = self.reset() if self.racetrack[tpy,tpx] == 1 else ((tpx, tpy), (self.vx, self.vy))
+            state = self.reset() if self.racetrack[tpy,tpx] == self.OFFROAD_VALUE else ((tpx, tpy), (self.vx, self.vy))
 
         # update pos
         self.px += self.vx
         self.py -= self.vy
 
         #print("pos ({}, {})".format(self.px, self.py))
-
-        #if game_over:
-        #    print("GOAL!")
 
         return state, reward, game_over, info

@@ -1,14 +1,17 @@
 from racetrack import Racetrack
 from collections import defaultdict
+import matplotlib.pyplot as plt
 import numpy as np
+# https://github.com/philtabor/Youtube-Code-Repository/blob/master/ReinforcementLearning/blackJack-off-policy.py
 
 ACTION_TO_INDEX = { (-1,-1):0, (-1,0):1, (-1,1):2, (0,-1):3, (0,0):4, (0,1):5, (1,-1):6, (1,0):7, (1,1):8}
+INDEX_TO_ACTION = { 0:(-1,-1), 1:(-1,0), 2:(-1,1), 3:(0,-1), 4:(0,0), 5:(0,1), 6:(1,-1), 7:(1,0), 8:(1,1)}
 
-def play_episode(env):
+def play_episode(env, Q):
     episode =[]
     state = env.reset()
     while True:
-        action, _ = behaviour_policy(env)
+        action, _ = behaviour_policy(env, Q, state)
         next_state, reward, game_over, info = env.step(action)
         episode.append((state, action, reward))
         state = next_state
@@ -16,7 +19,23 @@ def play_episode(env):
             break
     return episode
 
-def behaviour_policy(env): 
+def behaviour_policy(env, Q, state):
+    # Among the available actions, we select the best one. If there is no best action, we select
+    # and action randomly
+    q_state = Q[unravel_state(state)]
+    available_actions = env.get_available_actions()
+    available_action_indices = [ACTION_TO_INDEX[action] for action in available_actions]
+    available_action_values = q_state[available_action_indices]
+
+    if np.sum(available_action_values) != 0:
+        # We have been in this state before and we choose the best action
+        best_available_action_index = np.argmax(available_action_values)
+        return available_actions[best_available_action_index], 1
+    else:
+        # We have not been in this state before and chose a random action
+        return random_behaviour_policy(env)
+
+def random_behaviour_policy(env):
     actions = env.get_available_actions()
     # Behaviour policy will try to keep the car on the track
     for i in range(len(actions)):
@@ -34,7 +53,7 @@ def unravel_action(a):
     return a[0], a[1]
 
 
-def mc_control(env, gamma=0.01, iterations=1000):
+def mc_control(env, gamma=0.01, iterations=10):
     
     Q = np.zeros([env.state_space[0], env.state_space[1], env.state_space[2], env.state_space[3], env.nA])
     C = defaultdict(float)
@@ -45,34 +64,65 @@ def mc_control(env, gamma=0.01, iterations=1000):
         if e % 10 == 0:
             print("Playing episode {} out of {}.".format(e, iterations))
 
-        episode = play_episode(env)
+        episode = play_episode(env, Q)
 
         G = 0.0
         W = 1.0
         
-        for (state, action, reward) in reversed(episode):
+        if e > 300:
+            dum = 0
+
+        for i, (state, action, reward) in enumerate(reversed(episode)):
             G = gamma*G + reward
+            
+            # We do not consider the winning timestep since it contributes 0
+            # reward and we wont be able to improve from it
+            if i == 0:
+                continue
+
             C[state, action] += W
             
             s = unravel_state(state)
             Q[s[0], s[1], s[2], s[3], ACTION_TO_INDEX[action]] += (W / C[state, action])*(G - Q[s[0], s[1], s[2], s[3], ACTION_TO_INDEX[action]])
-            
+
             best_action = np.argmax(Q[unravel_state(state)])
             target_policy[unravel_state(state)] = np.eye(env.nA)[best_action]
 
-            if ACTION_TO_INDEX[action] != best_action:
+            # Best action should be selected in the behaviour policy but isnt??
+            if ACTION_TO_INDEX[action] != best_action: 
                 break
             else:
-                _, prob = behaviour_policy(env)
+                _, prob = behaviour_policy(env, Q, state)
                 W = W*(1/prob)
         
     return target_policy, Q
+
+def draw_Q(Q, env):
+    '''
+    Display the headings of each state that has none 0 value. The purpose is only to visualize the paths explored during training.
+    '''
+    fig = plt.figure(figsize=(15,15))
+    plt.imshow(env.racetrack, cmap='gray')
+    xs = []; ys = []; vxs = []; vys = []
+
+    for i, q in np.ndenumerate(Q):
+        if q != 0:
+            xs.append( i[0])
+            ys.append( i[1])
+            vxs.append(i[2])
+            vys.append(i[3])
+
+    
+    plt.quiver(xs, ys, vxs, vys)
+
+    plt.show()
 
 
 if __name__ == "__main__":
     env = Racetrack()
     state = env.reset()
 
-    policy, Q = mc_control(env)
+    policy, Q = mc_control(env, iterations=1000)
 
-    print(policy)
+    draw_Q(Q, env)
+    #print(policy)
