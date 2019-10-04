@@ -60,6 +60,9 @@ class Racetrack():
                     actions.append((dvx, dvy))
                 elif nvx == 0 and nvy == 0 and py == self.racetrack.shape[0]-1:
                     actions.append((dvx, dvy))
+
+        if len(actions) == 0:
+            dum = 0
         return actions
 
     def is_on_track(self, x,y):
@@ -76,8 +79,6 @@ class Racetrack():
 
         self.vx += dvx
         self.vy += dvy
-
-        #print("vel ({}, {})".format(self.vx, self.vy))
 
         # temporary position
         tpx = self.px + self.vx # temp pos x
@@ -112,6 +113,7 @@ class Racetrack():
         self.px += self.vx
         self.py -= self.vy
 
-        #print("pos ({}, {})".format(self.px, self.py))
+        if self.vy < 0:
+            dum = 0
 
         return state, reward, game_over, info
